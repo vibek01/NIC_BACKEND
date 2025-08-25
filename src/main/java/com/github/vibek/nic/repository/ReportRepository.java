@@ -50,4 +50,9 @@ public interface ReportRepository extends JpaRepository<Report, Long> {
         @Param("status") ReportStatus status,
         @Param("district") String district
     );
+
+    // ====================== NEW METHOD FOR DM DASHBOARD ======================
+    @Query("SELECT r FROM Report r JOIN r.caseEntity ce JOIN ce.caseDetails cd " +
+           "WHERE r.isFinalReport = true AND cd.girlSubdivision.district.name = :districtName")
+    List<Report> findFinalReportsByDistrictName(@Param("districtName") String districtName);
 }

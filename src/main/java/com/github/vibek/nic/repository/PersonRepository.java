@@ -20,10 +20,20 @@ public interface PersonRepository extends JpaRepository<Person, UUID> {
     List<Person> findByRoleAndSubdivision(Role role, Subdivision subdivision);
 
     @Query("SELECT p FROM Person p WHERE p.department = :department AND p.subdivision = :subdivision AND p.role = :role AND p.rank >= :rank")
-    List<Person> findByDepartmentAndSubdivisionAndRoleAndRankGreaterThanEqual(String department, @Param("subdivision") Subdivision subdivision, Role role, Integer rank);
+    List<Person> findByDepartmentAndSubdivisionAndRoleAndRankGreaterThanEqual(
+            @Param("department") String department,
+            @Param("subdivision") Subdivision subdivision,
+            @Param("role") Role role,
+            @Param("rank") Integer rank
+    );
 
     @Query("SELECT p FROM Person p WHERE p.department = :department AND p.subdivision = :subdivision AND p.role = :role AND p.rank = :rank")
-    List<Person> findByDepartmentAndSubdivisionAndRoleAndRank(String department, @Param("subdivision") Subdivision subdivision, Role role, Integer rank);
+    List<Person> findByDepartmentAndSubdivisionAndRoleAndRank(
+            @Param("department") String department,
+            @Param("subdivision") Subdivision subdivision,
+            @Param("role") Role role,
+            @Param("rank") Integer rank
+    );
 
     List<Person> findBySubdivision(Subdivision subdivision);
 
@@ -36,32 +46,59 @@ public interface PersonRepository extends JpaRepository<Person, UUID> {
     );
 
     @Query("SELECT p FROM Person p WHERE p.department = :department AND p.subdivision = :subdivision AND p.role = :role AND p.rank <= :rank")
-    List<Person> findByDepartmentAndSubdivisionAndRoleAndRankLessThanEqual(String department, @Param("subdivision") Subdivision subdivision, Role role, int rank);
+    List<Person> findByDepartmentAndSubdivisionAndRoleAndRankLessThanEqual(
+            @Param("department") String department,
+            @Param("subdivision") Subdivision subdivision,
+            @Param("role") Role role,
+            @Param("rank") int rank
+    );
 
     @Query("SELECT p FROM Person p WHERE p.role = :role AND p.district.name = :districtName")
-    List<Person> findByRoleAndDistrict(Role role, @Param("districtName") String districtName);
+    List<Person> findByRoleAndDistrict(
+            @Param("role") Role role,
+            @Param("districtName") String districtName
+    );
 
     @Query("SELECT p FROM Person p WHERE p.role = :role AND p.district.name = :districtName AND p.subdivision = :subdivision")
-    List<Person> findByRoleAndDistrictAndSubdivision(Role role, @Param("districtName") String districtName, @Param("subdivision") Subdivision subdivision);
+    List<Person> findByRoleAndDistrictAndSubdivision(
+            @Param("role") Role role,
+            @Param("districtName") String districtName,
+            @Param("subdivision") Subdivision subdivision
+    );
 
     @Query("SELECT p FROM Person p WHERE p.department = :department AND p.district.name = :districtName AND p.subdivision = :subdivision AND p.role = :role AND p.rank = :rank")
-    List<Person> findByDepartmentAndDistrictAndSubdivisionAndRoleAndRank(String string, @Param("districtName") String districtName, @Param("subdivision") Subdivision subdivision, Role role, int i);
+    List<Person> findByDepartmentAndDistrictAndSubdivisionAndRoleAndRank(
+            @Param("department") String department,
+            @Param("districtName") String districtName,
+            @Param("subdivision") Subdivision subdivision,
+            @Param("role") Role role,
+            @Param("rank") int rank
+    );
 
     // =================================================================
     // CRITICAL METHOD for finding Team Leaders
     // =================================================================
     @Query("SELECT p FROM Person p WHERE p.role = :role AND p.subdivision = :subdivision AND p.rank = :rank")
-    List<Person> findByRoleAndSubdivisionAndRank(Role role, @Param("subdivision") Subdivision subdivision, int rank);
+    List<Person> findByRoleAndSubdivisionAndRank(
+            @Param("role") Role role,
+            @Param("subdivision") Subdivision subdivision,
+            @Param("rank") int rank
+    );
 
     @Query("SELECT DISTINCT p.department FROM Person p WHERE p.subdivision = :subdivision")
     List<String> findDistinctDepartmentsBySubdivision(@Param("subdivision") Subdivision subdivision);
 
     @Query("SELECT p FROM Person p WHERE p.department = :department AND p.district.name = :districtName AND p.role = :role AND p.rank >= :rank")
-    List<Person> findByDepartmentAndDistrictAndRoleAndRankGreaterThanEqual(String deptName, @Param("districtName") String districtName, Role role, int i);
+    List<Person> findByDepartmentAndDistrictAndRoleAndRankGreaterThanEqual(
+            @Param("department") String department,
+            @Param("districtName") String districtName,
+            @Param("role") Role role,
+            @Param("rank") int rank
+    );
 
     @Query("SELECT p FROM Person p " +
-        "LEFT JOIN FETCH p.district " +         // <-- ADD THIS LINE
-        "LEFT JOIN FETCH p.subdivision " +      // <-- ADD THIS LINE
+        "LEFT JOIN FETCH p.district " +
+        "LEFT JOIN FETCH p.subdivision " +
         "WHERE (:role IS NULL OR p.role = :role) " +
         "AND (:department IS NULL OR p.department = :department) " +
         "AND (:rank IS NULL OR p.rank = :rank) " +

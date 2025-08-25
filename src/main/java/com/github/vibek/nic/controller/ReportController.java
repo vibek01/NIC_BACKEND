@@ -2,7 +2,9 @@ package com.github.vibek.nic.controller;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -14,6 +16,7 @@ import com.github.vibek.nic.entity.Report;
 import com.github.vibek.nic.entity.ReportFeedback;
 import com.github.vibek.nic.service.ReportService;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -25,6 +28,38 @@ import java.util.stream.Collectors;
 public class ReportController {
 
     private final ReportService reportService;
+
+    // ====================== NEW ENDPOINT START ======================
+    /**
+     * Generates and downloads a PDF of the final report for a given case.
+     * @param caseId The UUID of the case.
+     * @return A ResponseEntity containing the PDF file as a byte array.
+     */
+    @GetMapping("/case/{caseId}/download")
+    public ResponseEntity<byte[]> downloadFinalReport(@PathVariable UUID caseId) {
+        try {
+            byte[] pdfBytes = reportService.generateFinalReportPdf(caseId);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_PDF);
+            // The filename is set here
+            String filename = "FinalReport-Case-" + caseId + ".pdf";
+            headers.setContentDispositionFormData(filename, filename);
+            headers.setCacheControl("must-revalidate, post-check=0, pre-check=0");
+
+            return new ResponseEntity<>(pdfBytes, headers, HttpStatus.OK);
+
+        } catch (IOException e) {
+            // Log the exception properly in a real application
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        } catch (RuntimeException e) {
+            // Catches "Final report not found" etc.
+            return ResponseEntity.notFound().build();
+        }
+    }
+    // ======================= NEW ENDPOINT END =======================
+
 
     @PostMapping("/{reportId}/feedback")
     @ResponseStatus(HttpStatus.CREATED)
@@ -108,6 +143,14 @@ public class ReportController {
     @GetMapping("/{reportId}/feedback")
     public List<FeedbackResponseDTO> getFeedbackForReport(@PathVariable Long reportId) {
         return reportService.getFeedbackForReport(reportId);
+    }
+
+    @GetMapping("/final/district/{districtName}")
+    public List<ReportResponseDTO> getFinalReportsByDistrict(@PathVariable String districtName) {
+        return reportService.getFinalReportsByDistrict(districtName)
+                .stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
     }
     
     @GetMapping("/filter")

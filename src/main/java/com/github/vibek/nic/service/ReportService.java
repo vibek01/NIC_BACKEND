@@ -1,9 +1,11 @@
-// src/main/java/com/github/vibek/nic/service/ReportService.java
 package com.github.vibek.nic.service;
 
+import com.openhtmltopdf.pdfboxout.PdfRendererBuilder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.thymeleaf.TemplateEngine;
+import org.thymeleaf.context.Context;
 
 import com.github.vibek.nic.dto.FeedbackDTO.FeedbackRequestDTO;
 import com.github.vibek.nic.dto.FeedbackDTO.FeedbackResponseDTO;
@@ -16,7 +18,11 @@ import com.github.vibek.nic.repository.ReportFeedbackRepository;
 import com.github.vibek.nic.repository.ReportRepository;
 import com.github.vibek.nic.repository.TeamFormationRepository;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -25,22 +31,66 @@ public class ReportService {
 
     @Autowired
     private ReportRepository reportRepository;
-
     @Autowired
     private PersonRepository personRepository;
-
     @Autowired
     private TeamFormationRepository teamFormationRepository;
-
     @Autowired
     private ReportFeedbackRepository feedbackRepository;
-    
     @Autowired
     private CaseRepository caseRepository;
+    
+    // ====================== ADDED FOR PDF GENERATION START ======================
+    @Autowired
+    private TemplateEngine templateEngine;
+    
+    /**
+     * Generates a PDF byte array for the final report of a specific case.
+     * @param caseId The UUID of the case.
+     * @return A byte array representing the generated PDF.
+     * @throws IOException If an error occurs during PDF creation.
+     */
+    @Transactional(readOnly = true)
+    public byte[] generateFinalReportPdf(UUID caseId) throws IOException {
+        Report finalReport = reportRepository.findByCaseEntity_IdAndIsFinalReportTrue(caseId)
+                .orElseThrow(() -> new RuntimeException("Final report not found for case: " + caseId));
 
-    // =================================================================
-    // MODIFIED: Sophisticated, department-specific approval logic
-    // =================================================================
+        ChildMarriageCase caseEntity = finalReport.getCaseEntity();
+        CaseDetails caseDetails = caseEntity.getCaseDetails().stream().findFirst()
+                .orElseThrow(() -> new RuntimeException("Case details not found for case: " + caseId));
+
+        Person teamLeader = personRepository.findById(finalReport.getPersonId())
+                .orElse(null); // The team leader might not be in the DB anymore, handle gracefully
+
+        // Prepare the data for the template
+        Context context = new Context();
+        context.setVariable("caseEntity", caseEntity);
+        context.setVariable("caseDetails", caseDetails);
+        context.setVariable("finalReport", finalReport);
+        context.setVariable("teamLeader", teamLeader);
+        context.setVariable("generationDate", LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd MMMM, yyyy HH:mm")));
+        
+        // The merged report content may have newlines (\n). HTML needs <br> for line breaks.
+        String formattedReportContent = finalReport.getReport().replace("\n", "<br />");
+        context.setVariable("formattedReportContent", formattedReportContent);
+
+
+        // Process the HTML template with the data
+        String html = templateEngine.process("report-template", context);
+
+        // Generate PDF from the processed HTML
+        try (OutputStream os = new ByteArrayOutputStream()) {
+            PdfRendererBuilder builder = new PdfRendererBuilder();
+            builder.useFastMode();
+            builder.withHtmlContent(html, "/"); // Base URI is needed for relative paths, can be "/"
+            builder.toStream(os);
+            builder.run();
+            return ((ByteArrayOutputStream) os).toByteArray();
+        }
+    }
+    // ======================= ADDED FOR PDF GENERATION END =======================
+
+
     @Transactional
     public void approveReport(Long reportId, UUID approverId) {
         Person approver = personRepository.findById(approverId)
@@ -57,7 +107,6 @@ public class ReportService {
 
         switch (reportDepartment.toUpperCase()) {
             case "POLICE":
-                // Police reports must be approved by an SDPO of the same subdivision.
                 if ("SDPO".equalsIgnoreCase(approver.getPostName()) &&
                     approver.getSubdivision() != null &&
                     approver.getSubdivision().equals(submitter.getSubdivision())) {
@@ -65,7 +114,6 @@ public class ReportService {
                 }
                 break;
             case "ADMINISTRATION":
-                // Administration reports must be approved by an SDM of the same subdivision.
                 if ("SDM".equalsIgnoreCase(approver.getPostName()) &&
                     approver.getSubdivision() != null &&
                     approver.getSubdivision().equals(submitter.getSubdivision())) {
@@ -73,7 +121,6 @@ public class ReportService {
                 }
                 break;
             case "DICE":
-                // DICE reports must be approved by a District DICE officer of the same district.
                 if ("DISTRICT DICE".equalsIgnoreCase(approver.getPostName()) &&
                     approver.getDistrict() != null &&
                     approver.getDistrict().equals(submitter.getDistrict())) {
@@ -81,7 +128,6 @@ public class ReportService {
                 }
                 break;
             default:
-                // Fallback for other departments if any
                 throw new IllegalStateException("Approval logic for department '" + reportDepartment + "' is not defined.");
         }
 
@@ -95,8 +141,6 @@ public class ReportService {
     
     @Transactional
     public ReportFeedback giveFeedback(FeedbackRequestDTO dto) {
-        // This logic can also be enhanced with the same validation as approveReport
-        // For now, keeping original logic.
         personRepository.findById(dto.getSupervisorId())
             .orElseThrow(() -> new RuntimeException("Supervisor not found with ID: " + dto.getSupervisorId()));
         
@@ -115,7 +159,13 @@ public class ReportService {
             .build();
         return feedbackRepository.save(feedback);
     }
+
+    @Transactional(readOnly = true)
+    public List<Report> getFinalReportsByDistrict(String districtName) {
+        return reportRepository.findFinalReportsByDistrictName(districtName);
+    }
     
+
     public List<Report> getReportsByDepartment(String department) {
         return reportRepository.findByDepartmentOrderBySubmittedAtDesc(department);
     }
@@ -161,7 +211,6 @@ public class ReportService {
         if (report.getIsFinalReport()) {
             throw new RuntimeException("Final reports cannot be updated");
         }
-        // This logic can be updated to follow the new hierarchy if needed
         Person person = personRepository.findById(personId).orElseThrow(() -> new RuntimeException("Person not found"));
         if (!report.getPersonId().equals(personId)) {
              throw new RuntimeException("Only the original submitter can update this report.");
@@ -177,7 +226,6 @@ public class ReportService {
         Report report = reportRepository.findById(reportId).orElseThrow(() -> new RuntimeException("Report not found"));
         Person supervisor = personRepository.findById(supervisorId).orElseThrow(() -> new RuntimeException("Person not found"));
         
-        // This logic can be updated to follow the new hierarchy if needed
         if (supervisor.getRole() != Role.SUPERVISOR) {
             throw new RuntimeException("Only supervisors can delete reports");
         }
@@ -219,9 +267,6 @@ public class ReportService {
         return reportRepository.findByMultipleFilters(boySubdivision, girlSubdivision, marriageAddress, policeStation, year, month, department, statusEnum, district);
     }
 
-    // =================================================================
-    // MODIFIED: Merge logic now verifies that the merger is the assigned Team Leader
-    // =================================================================
     @Transactional
     public Report mergeReports(UUID caseId, UUID mergerId) {
         ChildMarriageCase caseEntity = caseRepository.findById(caseId)
@@ -262,7 +307,7 @@ public class ReportService {
                 .caseEntity(caseEntity)
                 .personId(mergerId)
                 .report(mergedContent)
-                .department("FINAL") // Use a special identifier for final reports
+                .department("FINAL")
                 .isFinalReport(true)
                 .status(ReportStatus.APPROVED)
                 .build();
