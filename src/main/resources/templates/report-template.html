@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Final Report</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        font-size: 12px;
+        color: #333;
+      }
+      .header {
+        text-align: center;
+        border-bottom: 2px solid #333;
+        padding-bottom: 10px;
+        margin-bottom: 20px;
+      }
+      .header h1 {
+        margin: 0;
+        font-size: 24px;
+      }
+      .header p {
+        margin: 5px 0 0;
+        font-size: 14px;
+      }
+      .section-title {
+        font-size: 18px;
+        font-weight: bold;
+        border-bottom: 1px solid #ccc;
+        padding-bottom: 5px;
+        margin-top: 25px;
+        margin-bottom: 15px;
+      }
+      .details-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 20px;
+      }
+      .details-table th,
+      .details-table td {
+        border: 1px solid #ddd;
+        padding: 8px;
+        text-align: left;
+        vertical-align: top;
+      }
+      .details-table th {
+        width: 25%;
+        background-color: #f2f2f2;
+        font-weight: bold;
+      }
+      .report-content {
+        margin-top: 20px;
+        padding: 15px;
+        border: 1px solid #eee;
+        background-color: #f9f9f9;
+        white-space: pre-wrap; /* This helps in preserving whitespace and newlines */
+        line-height: 1.6;
+      }
+      .footer {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        text-align: center;
+        font-size: 10px;
+        color: #777;
+        border-top: 1px solid #ccc;
+        padding-top: 5px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="header">
+      <h1>Government of Tripura</h1>
+      <p>Child Marriage Prevention Task Force</p>
+      <h2>CONFIDENTIAL - FINAL REPORT</h2>
+    </div>
+
+    <div class="section-title">Case Summary</div>
+    <table class="details-table">
+      <tr>
+        <th>Case ID</th>
+        <td th:text="${caseEntity.id}"></td>
+      </tr>
+      <tr>
+        <th>Status</th>
+        <td th:text="${caseEntity.status}"></td>
+      </tr>
+      <tr>
+        <th>Date Reported</th>
+        <td
+          th:text="${#temporals.format(caseEntity.reportedAt, 'dd-MMM-yyyy HH:mm')}"
+        ></td>
+      </tr>
+      <tr>
+        <th>Anticipated Marriage Date</th>
+        <td
+          th:text="${#temporals.format(caseDetails.marriageDate, 'dd-MMM-yyyy')}"
+        ></td>
+      </tr>
+      <tr>
+        <th>Marriage Location</th>
+        <td th:text="${caseDetails.marriageAddress}"></td>
+      </tr>
+    </table>
+
+    <div class="section-title">Parties Involved</div>
+    <table class="details-table">
+      <tr>
+        <th>Boy's Details</th>
+        <td>
+          <strong>Name:</strong> <span th:text="${caseDetails.boyName}"></span
+          ><br />
+          <strong>Father's Name:</strong>
+          <span th:text="${caseDetails.boyFatherName}"></span><br />
+          <strong>Address:</strong>
+          <span th:text="${caseDetails.boyAddress}"></span><br />
+          <strong>Subdivision:</strong>
+          <span th:text="${caseDetails.boySubdivision.name}"></span>
+        </td>
+      </tr>
+      <tr>
+        <th>Girl's Details</th>
+        <td>
+          <strong>Name:</strong> <span th:text="${caseDetails.girlName}"></span
+          ><br />
+          <strong>Father's Name:</strong>
+          <span th:text="${caseDetails.girlFatherName}"></span><br />
+          <strong>Address:</strong>
+          <span th:text="${caseDetails.girlAddress}"></span><br />
+          <strong>Subdivision:</strong>
+          <span th:text="${caseDetails.girlSubdivision.name}"></span>
+        </td>
+      </tr>
+    </table>
+
+    <div class="section-title">Consolidated Departmental Findings</div>
+    <div class="report-content" th:utext="${formattedReportContent}">
+      <!-- The merged report content will be injected here -->
+    </div>
+
+    <div class="footer">
+      <p>
+        Report finalized by:
+        <span
+          th:text="${teamLeader != null ? teamLeader.firstName + ' ' + teamLeader.lastName : 'N/A'}"
+        ></span>
+        | Generated on: <span th:text="${generationDate}"></span> | Page
+        <span class="pageNumber"></span> of <span class="totalPages"></span>
+      </p>
+    </div>
+  </body>
+</html>
